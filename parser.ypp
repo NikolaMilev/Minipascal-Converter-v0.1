@@ -1,0 +1,130 @@
+%{
+#include <iostream>
+#include <string>
+#include <cstdlib>
+#include <map>
+#include <vector>
+#include <fstream>
+#include "expression.hpp"
+#include "statement.hpp"
+
+#define YYDEBUG 1
+
+using namespace std;
+
+void yyerror(string s) {
+     cerr<<s<<endl;
+     exit(EXIT_FAILURE);
+}
+
+ofstream outputFile;
+extern int yylex();
+float _scale;
+float _scaleNodes;
+float _distance;
+%}
+
+%union {
+       string *s; //for identifiers
+       string *str; //for STRING_TOKEN
+       Expression *i; // for expressions
+       Statement *n; // for statements
+       string *v; // for constant numbers
+       vector<Statement*> *vect;
+}
+
+
+%token <v> CONST_TOKEN
+%token <s> IDENTIFIER
+%token OUTPUT_TOKEN ASSIGN_TOKEN BEGIN_TOKEN END_TOKEN
+%token IF_TOKEN THEN_TOKEN ELSE_TOKEN
+%token WHILE_TOKEN DO_TOKEN REPEAT_TOKEN UNTIL_TOKEN
+%token LE_TOKEN GE_TOKEN NOTEQUAL_TOKEN OR_TOKEN DIV_TOKEN MOD_TOKEN AND_TOKEN
+%token FOR_TOKEN TO_TOKEN DOWNTO_TOKEN LOWER_THAN_ELSE
+%token STRING_TOKEN INPUT_TOKEN
+
+%type <n> Block Statement
+%type<str> STRING_TOKEN
+%type <i> E String_Expression
+%type <vect> StatementSequence
+
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE_TOKEN
+
+%left '<' '>' LE_TOKEN_TOKEN GE_TOKEN_TOKEN '=' NOTEQUAL_TOKEN_TOKEN
+%left '+' '-' OR_TOKEN
+%left '*' '/' AND_TOKEN DIV_TOKEN MOD_TOKEN
+
+%%
+Program : Block '.'					{ $1->draw(); delete $1; }
+;
+Block: BEGIN_TOKEN StatementSequence END_TOKEN			{ $$ = new BlockStatement($2); }
+;
+StatementSequence: StatementSequence ';' Statement			{ $$ = $1; $$->push_back($3); }
+| Statement						{ $$ = new vector<Statement*>(); $$->push_back($1); }
+;
+Statement: IDENTIFIER ASSIGN_TOKEN E			{ $$ = new Assignment(*$1, $3); delete $1; }
+| OUTPUT_TOKEN '(' E ')'				{ $$ = new OutputStatement($3); }
+| INPUT_TOKEN '(' IDENTIFIER ')'			{ $$ = new InputStatement(new Variable(*$3)); }
+| WHILE_TOKEN E DO_TOKEN Statement	   		{ $$ = new WhileStatement($2, $4); }
+| IF_TOKEN E THEN_TOKEN Statement	%prec LOWER_THAN_ELSE	{ $$ = new IfThenStatement($2, $4); }
+| IF_TOKEN E THEN_TOKEN Statement ELSE_TOKEN Statement	{ $$ = new IfThenElseStatement($2, $4, $6); }
+| REPEAT_TOKEN StatementSequence UNTIL_TOKEN E			{ $$ = new RepeatUntilStatement($2, $4); }
+| FOR_TOKEN IDENTIFIER ASSIGN_TOKEN E TO_TOKEN E DO_TOKEN Statement		{ $$ = new ForToStatement(new Assignment(*$2, $4), $6, $8); }
+| FOR_TOKEN IDENTIFIER ASSIGN_TOKEN E DOWNTO_TOKEN E DO_TOKEN Statement	{ $$ = new ForDownToStatement(new Assignment(*$2, $4), $6, $8); }
+| Block	       		  	      			{ $$ = $1; }
+|							{ $$ = new EmptyStatement(); }
+;
+E: E '+' E						{ $$ = new Addition($1, $3);  }
+| '(' E ')'						{ $$ = new BracketExpression($2);  }
+| E '-' E						{ $$ = new Subtraction($1, $3); }
+| E '*' E						{ $$ = new Multiplication($1, $3); }
+| E '/' E						{ $$ = new Division($1, $3); }
+| E DIV_TOKEN E						{ $$ = new Div($1, $3); }
+| E MOD_TOKEN E						{ $$ = new Mod($1, $3); }
+| E OR_TOKEN E						{ $$ = new Or($1, $3); }
+| E AND_TOKEN E						{ $$ = new And($1, $3); }
+| E '<' E						{ $$ = new LessThan($1, $3); }
+| E '>' E						{ $$ = new GreaterThan($1,$3); }
+| E LE_TOKEN_TOKEN E					{ $$ = new LessOrEqualThan($1, $3); }
+| E GE_TOKEN_TOKEN E					{ $$ = new GreaterOrEqualThan($1, $3); }
+| E NOTEQUAL_TOKEN_TOKEN E				{ $$ = new NotEqual($1, $3); }
+| E '=' E						{ $$ = new Equal($1, $3); }
+| String_Expression					{  }
+| CONST_TOKEN						{ $$ = new ConstantNumber(*$1); delete($1); }		
+| IDENTIFIER '[' CONST_TOKEN ']'			{ string s(*$1); s.append("["); s.append(*$3); s.append("]"); cout << s << endl; $$ = new Variable(s); delete($1); }
+| IDENTIFIER						{ $$ = new Variable(*$1); delete($1); }
+;
+String_Expression: STRING_TOKEN				{ $$ = new StringExpression(*$1); }
+
+
+%%
+
+int main() {
+  _scale = 0.8;
+  _scaleNodes = 0.8;
+  _distance = 2;
+  outputFile.open("output.tex");
+  outputFile << "\\documentclass[a4paper]{article}" << endl;
+  outputFile << "\\usepackage{tikz}" << endl;
+  outputFile << "\\usetikzlibrary{shapes.geometric, arrows}" << endl;
+  outputFile << "\\tikzstyle{startstop} = [ellipse, minimum width=60,text centered, draw=black, fill=red!30]" << endl;
+  outputFile << "\\tikzstyle{input} = [trapezium, trapezium left angle=110, trapezium right angle=110, minimum width=60, text centered, draw=black, fill=blue!30]" << endl;
+  outputFile << "\\tikzstyle{output} = [trapezium, trapezium left angle=70, trapezium right angle=70, minimum width=60, text centered, draw=black, fill=blue!30]" << endl;
+  outputFile << "\\tikzstyle{process} = [rectangle, minimum width=60, text centered, draw=black, fill=orange!30]" << endl;
+  outputFile << "\\tikzstyle{forinit} = [rectangle, minimum width=60, text centered, draw=black, fill=green!30]" << endl;
+  outputFile << "\\tikzstyle{decision} = [diamond, shape aspect = 2.5, minimum width=60, text centered, draw=black, fill=green!30]" << endl;
+  outputFile << "\\tikzstyle{arrow} = [thick, -> ,>=stealth]" << endl;
+  outputFile << "\\tikzstyle{blank} = [circle, inner sep=0pt, minimum size=3, fill=black]" << endl;
+  outputFile << "\\begin{document}" << endl;
+  outputFile << "\\begin{tikzpicture}[scale="<< _scale <<"," << "every node/.style={scale="<< _scaleNodes <<"}]" << endl;
+      
+  yydebug = 1;
+  yyparse();
+   
+  outputFile << "\\end{tikzpicture}" << endl;
+  outputFile << "\\end{document}" << endl;
+  
+  outputFile.close();
+  return 0;
+}

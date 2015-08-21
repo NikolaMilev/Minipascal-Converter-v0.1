@@ -1,0 +1,11 @@
+\documentclass[a4paper]{article}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows}
+\tikzstyle{startstop} = [ellipse, minimum width=60,text centered, draw=black, fill=red!30]
+\tikzstyle{input} = [trapezium, trapezium left angle=110, trapezium right angle=110, minimum width=60, text centered, draw=black, fill=blue!30]
+\tikzstyle{output} = [trapezium, trapezium left angle=70, trapezium right angle=70, minimum width=60, text centered, draw=black, fill=blue!30]
+\tikzstyle{process} = [rectangle, minimum width=60, text centered, draw=black, fill=orange!30]
+\tikzstyle{forinit} = [rectangle, minimum width=60, text centered, draw=black, fill=green!30]
+\tikzstyle{decision} = [diamond, shape aspect = 2.5, minimum width=60, text centered, draw=black, fill=green!30]
+\tikzstyle{arrow} = [thick, -> ,>=stealth]
+\tikzstyle{blank} = [circle, inner sep=0pt, minimum size=3, fill=black]
